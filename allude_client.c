@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+/* this function calls malloc(3). You must call free(3) on its output. */
 char *read_message(int server_socket)
 {
   /* read the first thing */
@@ -23,6 +24,7 @@ char *read_message(int server_socket)
   {
     fprintf(stderr, "OTHER receive didn't work\n");
     free(message);
+    message = NULL;
     return NULL;
   }
   message[pascal_length] = '\0'; /* NULL */
@@ -63,7 +65,7 @@ int connect_to_server(char *hostname, uint16_t port)
 int game_init(int user_socket, int server_socket)
 {
   printf("I'mma innitting the game now that everything's a-connected");
-  char *message;
+  char *message = NULL;
   if((message = read_message(server_socket)) == NULL)
   {
     fprintf(stderr, "READ MESSAGE FAILED\n");
@@ -73,17 +75,20 @@ int game_init(int user_socket, int server_socket)
   {
     fprintf(stderr, "I'm sorry, Cap'n, there's no more room\n");
     free(message);
+    message = NULL;
     return 1;
   }
   else if(strcmp(message, "YO") == 0)
   {
     printf("We're good to go, there's room!\n");
     free(message);
+    message = NULL;
   }
   else
   {
     fprintf(stderr, "Errr, got something that's not YO or NO (%s)\n", message);
     free(message);
+    message = NULL;
     return 1;
   }
   /* we have yo by this stage */
