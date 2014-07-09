@@ -72,15 +72,18 @@ int game_init(int user_socket, int server_socket)
   if(strcmp(message, "NO") == 0)
   {
     fprintf(stderr, "I'm sorry, Cap'n, there's no more room\n");
+    free(message);
     return 1;
   }
   else if(strcmp(message, "YO") == 0)
   {
     printf("We're good to go, there's room!\n");
+    free(message);
   }
   else
   {
     fprintf(stderr, "Errr, got something that's not YO or NO (%s)\n", message);
+    free(message);
     return 1;
   }
   /* we have yo by this stage */
