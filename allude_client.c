@@ -7,8 +7,16 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#define CMD_ERROR -1
+#define CMD_YO 0
+#define CMD_NO 1
+#define NUM_CMDS 2
+
+const char *cmds[] = {"YO", "NO"};
+
 /* this function calls malloc(3). You must call free(3) on its output. */
-char *read_message(int server_socket)
+/* DOES NOT RETURN NULL-TERMINATED STRING - use memcmp(3) because it's evil.*/
+char *read_message(int server_socket, int *length)
 {
   /* read the first thing */
   int pascal_length;
@@ -19,7 +27,7 @@ char *read_message(int server_socket)
   }
   pascal_length = ntohl(pascal_length); /* ENDIAN FIX */
   /* now read the unfirst thing */
-  char *message = malloc(pascal_length + 1); /* don't a-forget the a-null */
+  char *message = malloc(pascal_length);
   if(recv(server_socket, message, pascal_length, MSG_WAITALL) < pascal_length)
   {
     fprintf(stderr, "OTHER receive didn't work\n");
@@ -27,7 +35,7 @@ char *read_message(int server_socket)
     message = NULL;
     return NULL;
   }
-  message[pascal_length] = '\0'; /* NULL */
+  *length = pascal_length;
   return message;
 }
 
@@ -62,34 +70,48 @@ int connect_to_server(char *hostname, uint16_t port)
   return server_socket;
 }
 
+int get_cmd(char *message, int length)
+{
+  if(length<2)
+    return -1;
+  int i;
+  for(i=0; i<NUM_CMDS; i++)
+  {
+    if(memcmp(message, cmds[i], 2) == 0)
+      return i;
+  }
+  return -1;
+}
+
 int game_init(int user_socket, int server_socket)
 {
-  printf("I'mma innitting the game now that everything's a-connected");
+  printf("I'mma innitting the game now that everything's a-connected\n");
   char *message = NULL;
-  if((message = read_message(server_socket)) == NULL)
+  int length = 0;
+  if((message = read_message(server_socket, &length)) == NULL)
   {
     fprintf(stderr, "READ MESSAGE FAILED\n");
     return 1;
   }
-  if(strcmp(message, "NO") == 0)
+  switch(get_cmd(message, length))
   {
-    fprintf(stderr, "I'm sorry, Cap'n, there's no more room\n");
-    free(message);
-    message = NULL;
-    return 1;
-  }
-  else if(strcmp(message, "YO") == 0)
-  {
-    printf("We're good to go, there's room!\n");
-    free(message);
-    message = NULL;
-  }
-  else
-  {
-    fprintf(stderr, "Errr, got something that's not YO or NO (%s)\n", message);
-    free(message);
-    message = NULL;
-    return 1;
+    case CMD_NO:
+      fprintf(stderr, "I'm sorry, Cap'n, there's no more room\n");
+      free(message);
+      message = NULL;
+      return 1;
+      break;
+    case CMD_YO:
+      printf("We're good to go, there's room!\n");
+      free(message);
+      message = NULL;
+      break;
+    default:
+      fprintf(stderr, "Errr, got something that's not YO or NO (%s)\n", message);
+      free(message);
+      message = NULL;
+      return 1;
+      break;
   }
   /* we have yo by this stage */
   return 0;
